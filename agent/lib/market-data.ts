@@ -24,6 +24,7 @@ export const TRUSTED_PUBLISHERS = [
   "wall street journal",
   "dow jones",
   "barron's",
+  "barrons",
   "marketwatch",
   "cnbc",
   "the economist",

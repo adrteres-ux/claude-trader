@@ -7,7 +7,7 @@
 $script = Join-Path $PSScriptRoot "run-agent.ps1"
 $days = @("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 $settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew
-foreach ($t in @(@{ Slot = "P0"; Time = "08:30" }, @{ Slot = "S0"; Time = "09:30" }, @{ Slot = "S1"; Time = "16:30" }, @{ Slot = "S2"; Time = "21:00" }, @{ Slot = "CLOSE"; Time = "22:30" })) {
+foreach ($t in @(@{ Slot = "P0"; Time = "08:30" }, @{ Slot = "S0"; Time = "09:30" }, @{ Slot = "S1"; Time = "16:30" }, @{ Slot = "S2"; Time = "21:00" }, @{ Slot = "CLOSE"; Time = "22:30" }, @{ Slot = "PF"; Time = "22:20" })) {
   $name = "ClaudeTrader-" + $t.Slot
   $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument ("-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"{0}`" -Slot {1}" -f $script, $t.Slot)
   $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $days -At $t.Time

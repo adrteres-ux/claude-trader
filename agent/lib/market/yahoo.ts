@@ -143,6 +143,18 @@ export class YahooProvider implements MarketDataProvider {
     return out.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
+  /** Busca símbolos de Yahoo por texto o ISIN (sirve para encontrar fondos por su ISIN). */
+  async searchSymbols(query: string): Promise<{ symbol: string; quoteType: string | null; exchange: string | null; name: string | null }[]> {
+    try {
+      const raw: Raw = await withRetry(`Yahoo búsqueda ${query}`, () => this.yf.search(query, { quotesCount: 10, newsCount: 0 }, NO_VALIDATE) as Promise<Raw>, 2);
+      return ((raw?.quotes ?? []) as Raw[])
+        .filter((q) => q?.symbol)
+        .map((q) => ({ symbol: String(q.symbol), quoteType: q.quoteType ?? null, exchange: q.exchange ?? null, name: q.longname ?? q.shortname ?? null }));
+    } catch {
+      return [];
+    }
+  }
+
   /** Ventas, márgenes, deuda y ROE (módulo financialData). Se cachean en disco un día. Null si no hay datos. */
   async getFundamentals(symbol: string): Promise<Fundamentals | null> {
     const file = path.join(FUND_CACHE_DIR, `${symbol.replace(/[^A-Za-z0-9.-]/g, "_")}_${madridDate(new Date())}.json`);
