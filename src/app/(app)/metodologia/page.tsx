@@ -42,8 +42,8 @@ export default async function MetodologiaPage() {
           Antes de decidir, un <strong className="text-ink">equipo</strong> prepara la reunión. Un motor cuantitativo (código) calcula el riesgo de la cartera
           (volatilidad, VaR, CVaR, beta), 5.000 escenarios de Monte Carlo, pruebas de estrés, correlaciones, un ranking por factores (momentum, tendencia, baja volatilidad y
           valor) y el post-mortem de cada operación pasada. Después, dos llamadas a Claude en paralelo, también sin herramientas, hacen de analista cuantitativo y de gestora de
-          riesgos y escriben un memo cada una. El gestor recibe esos memos y el manual de estrategia de la academia. Cada viernes, la academia (otra llamada a Claude) revisa la
-          semana con los datos y reescribe ese manual. Todo queda guardado en el registro encadenado y se puede ver en las páginas Oficina y Cuantitativo.
+          riesgos y escriben un memo cada una. El gestor recibe esos memos y el manual de estrategia de la academia. Cada día, tras el cierre, la academia (otra llamada a Claude) explica por qué
+          la cartera ganó o perdió, posición a posición, saca lecciones y actualiza ese manual para la sesión siguiente. Todo queda guardado en el registro encadenado y se puede ver en las páginas Oficina y Cuantitativo.
         </p>
         <p className="mt-2">
           El Monte Carlo usa bootstrap por bloques de 5 días reales del último año, con semilla fija (reproducible). Se le quita la tendencia pasada y se supone un 5 % anual
@@ -65,7 +65,9 @@ export default async function MetodologiaPage() {
           <li>Órdenes a mercado: precio de cotización del momento de la ejecución ± slippage. Órdenes limitadas: válidas durante la sesión del día. Si el precio ya cumple el límite se ejecutan al momento; si no, quedan pendientes (reservando efectivo o acciones) y se revisan con barras de 5 minutos. Si se tocó el límite se ejecutan a ese precio; si no, caducan al cierre.</li>
           <li>Primero se ejecutan las ventas y después las compras. Se rechaza cualquier activo que no estuviera en los datos enviados a Claude en esa ejecución.</li>
           <li>Divisa base EUR. Los activos en USD se convierten con el tipo EUR/USD real del momento, que se guarda con cada operación.</li>
-          <li>Dividendos: se abonan en bruto el día ex-dividendo (se ignoran impuestos). Los splits ajustan la cantidad de acciones.</li>
+          <li>Importe mínimo por operación: {fmtEur(Number(exp.min_order_eur ?? 0))} (se permite vender una posición entera aunque sea menor), para que la comisión mínima no se coma operaciones pequeñas.</li>
+          <li>Dividendos: se abonan el día ex-dividendo netos de un {fmtPct(Number(exp.dividend_tax_pct ?? 0), false, 0)} de impuesto. Los splits ajustan la cantidad de acciones.</li>
+          <li>Impuestos: {exp.capital_gains_tax ? "al empezar cada año se paga, desde el efectivo, el IRPF del ahorro (19 % hasta 6.000 €, 21 % hasta 50.000 €, 23 %, 27 % y 30 % por encima) sobre las ganancias netas realizadas el año anterior; las pérdidas del año compensan las ganancias del mismo año" : "no se aplica el IRPF sobre las ganancias realizadas"}. Los benchmarks son ETF de acumulación que no venden, así que no realizan ganancias ni pagan este impuesto hasta que se liquidan, igual que un inversor real.</li>
           <li>Cripto: {exp.allow_crypto ? "permitida" : "desactivada"}.</li>
         </ul>
       </Section>
@@ -107,7 +109,7 @@ export default async function MetodologiaPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>No se simulan liquidez, horquillas ni impacto de mercado más allá del slippage fijo. Una orden se ejecuta entera o no se ejecuta.</li>
           <li>Los precios con retraso hacen que la ejecución sea al precio de hace unos minutos, no al real del instante.</li>
-          <li>Se ignoran impuestos, retenciones de dividendos y costes de custodia.</li>
+          <li>Impuestos simplificados: no se arrastran pérdidas a años siguientes, no se aplica la regla de los dos meses ni el límite de compensación entre dividendos y ganancias, y se usa un 19 % fijo para los dividendos (sin la doble imposición del país de origen). Se ignoran los costes de custodia.</li>
           <li>Yahoo Finance es una fuente no oficial: puede fallar, cambiar o dar algún dato erróneo. Los fallos quedan registrados.</li>
           <li>Claude solo decide en las reuniones programadas. La de las 08:30 es de preapertura: con las bolsas cerradas no opera y solo deja un plan para la apertura. Si el ordenador está apagado o sin enchufar, esa reunión se registra como no realizada.</li>
           <li>Un periodo corto no permite sacar conclusiones estadísticas sobre la habilidad de nadie, humano o IA.</li>

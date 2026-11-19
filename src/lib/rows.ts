@@ -32,7 +32,7 @@ export function fillRowToEvent(f: Row): LedgerEvent {
 export function corporateRowToEvent(c: Row): LedgerEvent {
   // Se aplica al inicio del día ex (antes de cualquier operación de ese día).
   const at = new Date(`${c.ex_date}T00:00:00Z`);
-  return c.kind === "split"
-    ? { type: "split", at, symbol: c.symbol, ratio: Number(c.ratio) }
-    : { type: "dividend", at, symbol: c.symbol, cashEur: Number(c.cash_eur) };
+  if (c.kind === "split") return { type: "split", at, symbol: c.symbol, ratio: Number(c.ratio) };
+  if (c.kind === "tax") return { type: "tax", at, year: Number(String(c.symbol).replace("IRPF-", "")), cashEur: Number(c.cash_eur) };
+  return { type: "dividend", at, symbol: c.symbol, cashEur: Number(c.cash_eur) };
 }

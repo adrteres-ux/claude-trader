@@ -17,6 +17,17 @@ export interface MarketQuote extends Quote {
   marketCap: number | null;
   dividendYield: number | null; // %
   previousClose: number | null;
+  earningsDate: Date | null; // próxima presentación de resultados (si Yahoo la da)
+}
+
+/** Datos fundamentales básicos (solo acciones). Fracciones: 0.12 = 12 %. */
+export interface Fundamentals {
+  revenueGrowth: number | null; // crecimiento de ventas interanual
+  earningsGrowth: number | null; // crecimiento del beneficio interanual
+  operatingMargin: number | null;
+  profitMargin: number | null;
+  debtToEquity: number | null; // deuda / patrimonio, en veces (1.5 = 150 %)
+  returnOnEquity: number | null;
 }
 
 export interface CorporateEvent {
@@ -40,4 +51,5 @@ export interface MarketDataProvider {
   getIntradayBars(symbol: string, from: Date, to: Date): Promise<Bar[]>;
   getEvents(symbol: string, from: Date): Promise<CorporateEvent[]>;
   getNews(query: string, count: number): Promise<NewsItem[]>;
+  getFundamentals?(symbol: string): Promise<Fundamentals | null>;
 }

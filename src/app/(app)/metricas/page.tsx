@@ -78,7 +78,7 @@ export default async function MetricasPage() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Operaciones cerradas ganadoras" value={wr === null ? "—" : fmtPct(wr, false, 0)} sub={`${p.closedTrades.length} ventas con P&L realizado`} />
-        <Stat label="P&L realizado" value={fmtEur(p.realizedPnlEur)} valueClass={tone(p.realizedPnlEur)} sub={`Dividendos: ${fmtEur(p.dividendsEur)}`} />
+        <Stat label="P&L realizado" value={fmtEur(p.realizedPnlEur)} valueClass={tone(p.realizedPnlEur)} sub={`Dividendos netos: ${fmtEur(p.dividendsEur)} · Impuestos pagados: ${fmtEur(p.taxesEur)}`} />
         <Stat label="Rotación" value={to === null ? "—" : `${to.toLocaleString("es-ES", { maximumFractionDigits: 2 })}×`} sub={`Negociado: ${fmtEur(p.turnoverEur)}`} />
         <Stat label="Comisiones pagadas" value={fmtEur(p.commissionsEur + p.fxFeesEur)} sub={`${d.fills.length} ejecuciones`} />
       </div>

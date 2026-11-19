@@ -24,14 +24,22 @@ try {
   Set-Location $repo
   New-Item -ItemType Directory -Force -Path "agent\logs" | Out-Null
   $log = Join-Path $repo ("agent\logs\{0}_{1}.log" -f (Get-Date -Format "yyyy-MM-dd"), $Slot)
+  # Actualizacion automatica: descarga los cambios de GitHub antes de cada ejecucion y, si cambian
+  # las dependencias, las reinstala. Si falla (sin red, cambios locales) se sigue con la version actual.
+  $before = (git rev-parse HEAD 2>$null)
+  cmd.exe /c "git pull --ff-only --quiet >> `"$log`" 2>&1"
+  $after = (git rev-parse HEAD 2>$null)
+  if ($before -and $after -and $before -ne $after) {
+    Add-Content -Path $log -Value ("[update] Codigo actualizado de " + $before.Substring(0, 7) + " a " + $after.Substring(0, 7))
+    $changed = (git diff --name-only $before $after 2>$null)
+    if ($changed -match "package-lock.json") { cmd.exe /c "npm install --no-audit --no-fund >> `"$log`" 2>&1" }
+  }
   if ($Slot -eq "CLOSE") {
     cmd.exe /c "npm run close-day >> `"$log`" 2>&1"
-    # Los viernes (o el sabado de madrugada si el cierre se lanzo tarde), la academia revisa la semana.
-    $dow = (Get-Date).DayOfWeek
-    if ($dow -eq "Friday" -or ($dow -eq "Saturday" -and $hour -lt 9)) {
-      $day = if ($dow -eq "Saturday") { (Get-Date).AddDays(-1).ToString("yyyy-MM-dd") } else { (Get-Date).ToString("yyyy-MM-dd") }
-      cmd.exe /c "npm run academy -- --day $day >> `"$log`" 2>&1"
-    }
+    # Cada dia, tras el cierre, la academia revisa por que se gano o se perdio y actualiza el manual.
+    # Si el cierre se lanzo de madrugada (antes de las 09:00), revisa el dia anterior.
+    $day = if ($hour -lt 9) { (Get-Date).AddDays(-1).ToString("yyyy-MM-dd") } else { (Get-Date).ToString("yyyy-MM-dd") }
+    cmd.exe /c "npm run academy -- --day $day >> `"$log`" 2>&1"
   }
   else { cmd.exe /c "npm run run-agent -- --slot $Slot >> `"$log`" 2>&1" }
   $code = $LASTEXITCODE

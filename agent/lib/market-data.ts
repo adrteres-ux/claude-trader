@@ -75,11 +75,19 @@ export async function gatherMarketData(
     }
   });
 
+  // Fundamentales solo de acciones (los ETF no tienen ventas ni márgenes). Caché diaria en disco.
+  const fundamentals = await mapLimit(tradable, 4, async (q) =>
+    q.quoteType === "EQUITY" && provider.getFundamentals ? provider.getFundamentals(q.symbol).catch(() => null) : null,
+  );
+  const withFund = fundamentals.filter(Boolean).length;
+  opts.log(`Fundamentales: ${withFund} de ${tradable.filter((q) => q.quoteType === "EQUITY").length} acciones`);
+
   const heldSet = new Set(opts.held);
   const universe: UniverseRow[] = tradable.map((q, i) => ({
     quote: q,
     region: regions.get(q.symbol) ?? (opts.watchlist.has(q.symbol) ? "Watchlist" : "Otros"),
     indicators: indicators[i],
+    fundamentals: fundamentals[i],
     held: heldSet.has(q.symbol),
     watchlist: opts.watchlist.has(q.symbol),
   }));

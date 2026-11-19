@@ -17,6 +17,9 @@ export interface ExperimentConfig {
   allowFractional: boolean;
   riskFreeRate: number; // anual, para Sharpe
   maxQuoteAgeMinutes: number; // precio más antiguo aceptado para ejecutar
+  minOrderEur: number; // importe mínimo de una operación (0 = sin mínimo)
+  dividendTaxPct: number; // retención/impuesto sobre dividendos (0.19 = 19 %)
+  capitalGainsTax: boolean; // liquidar cada año el IRPF del ahorro sobre las ganancias realizadas
 }
 
 export const DEFAULT_CONFIG: ExperimentConfig = {
@@ -30,6 +33,9 @@ export const DEFAULT_CONFIG: ExperimentConfig = {
   allowFractional: false,
   riskFreeRate: 0,
   maxQuoteAgeMinutes: 30,
+  minOrderEur: 0,
+  dividendTaxPct: 0,
+  capitalGainsTax: false,
 };
 
 export interface Instrument {
@@ -91,4 +97,5 @@ export interface Fill {
 export type LedgerEvent =
   | { type: "fill"; at: Date; fill: Fill }
   | { type: "dividend"; at: Date; symbol: string; cashEur: number }
-  | { type: "split"; at: Date; symbol: string; ratio: number };
+  | { type: "split"; at: Date; symbol: string; ratio: number }
+  | { type: "tax"; at: Date; year: number; cashEur: number }; // cashEur negativo: impuesto pagado

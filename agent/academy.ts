@@ -1,5 +1,5 @@
-// Academia semanal: `npm run academy` (la lanza la tarea de cierre los viernes).
-// Opciones: --dry-run (no guarda), --day YYYY-MM-DD (semana a revisar; por defecto, hoy en Madrid).
+// Academia diaria: `npm run academy` (la lanza la tarea de cierre cada día, tras el cierre).
+// Opciones: --dry-run (no guarda), --day YYYY-MM-DD (día a revisar; por defecto, hoy en Madrid).
 import { madridDate } from "@/core/calendar";
 import { runAcademy } from "./lib/agent/academy";
 import { adminClient, getExperiment } from "./lib/db";

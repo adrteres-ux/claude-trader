@@ -8,7 +8,7 @@ const TABLES: { table: string; label: string }[] = [
   { table: "orders", label: "Órdenes" },
   { table: "fills", label: "Ejecuciones" },
   { table: "order_events", label: "Eventos de órdenes" },
-  { table: "corporate_actions", label: "Dividendos y splits" },
+  { table: "corporate_actions", label: "Dividendos, splits e impuestos" },
   { table: "watchlist_events", label: "Watchlist" },
   { table: "benchmarks", label: "Compra de benchmarks" },
   { table: "snapshots", label: "Valoraciones" },
