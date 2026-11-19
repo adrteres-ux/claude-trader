@@ -81,6 +81,24 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
   `agent/lib/market-data.ts` (Reuters, Bloomberg, AP, AFP, FT, WSJ/Dow Jones, Barron's, MarketWatch, CNBC,
   The Economist, Nikkei, Yahoo Finance). El resto se descarta y se anota en el log; el prompt muestra la fuente de cada titular.
 
+- Mejora continua (2026-11-19, petición del usuario): la academia pasa de semanal a DIARIA (tarea CLOSE,
+  `run-agent.ps1`). Explica por qué se ganó o perdió (atribución por posición vs MSCI World, efecto del
+  efectivo), saca lecciones y actualiza el manual solo si la evidencia lo justifica (un día es ruido; las
+  sospechas van a `experiments`). Periodo = día (YYYY-MM-DD). El gestor recibe las 3 últimas revisiones
+  (`recentLessons`) en la sección LECCIONES RECIENTES.
+- Más información para el gestor (2026-11-19): CALENDARIO con citas macro (Fed, BCE, IPC y empleo de EE. UU.,
+  fechas oficiales en `src/core/macro-calendar.ts`, cubre hasta dic-2027: ampliar cada año) y resultados
+  empresariales (`earningsTimestamp` de Yahoo); fundamentales (crecimiento de ventas y beneficio, margen
+  operativo, deuda/patrimonio, ROE; `quoteSummary financialData`, caché diaria en `agent/.cache/fundamentals`);
+  POSICIONES ABIERTAS con la tesis completa de la última compra; diario menos recortado (500/800/300).
+- Costes reales de un inversor en España (2026-11-19, migración `20261119210000_costes_reales.sql`):
+  comisión de cambio 0,25 %, importe mínimo 500 € por operación (motor: `MIN_ORDER_SIZE`, salvo vender la
+  posición entera), dividendos netos de un 19 %, IRPF del ahorro (19/21/23/27/30 %, `src/core/taxes.ts`)
+  pagado del efectivo en el primer cierre de cada año sobre la ganancia neta realizada del año anterior
+  (evento `corporate_actions` kind `tax`, symbol `IRPF-<año>`). Benchmarks: ETF de acumulación, no pagan.
+- Actualización automática (2026-11-19): `run-agent.ps1` hace `git pull --ff-only` antes de cada ejecución
+  y `npm install` si cambia `package-lock.json`.
+
 ## Historia heredada del proyecto original (PolParis)
 - Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.
 

@@ -64,7 +64,7 @@ export default async function OficinaPage() {
     { id: "gestor", name: "Gestor de cartera", role: "IA (Claude)", ai: true, hair: "#1f1f1f", look: "patillas-copa", bubble: orders.length ? `${orders.length} ${orders.length === 1 ? "orden" : "órdenes"}. ¡Adelante!` : decision ? "Hoy no opero" : "Escuchando al equipo", summary: decision?.summary ?? null },
     { id: "ejecucion", name: "Mesa de ejecución", role: "Código", ai: false, hair: "#2b2b2b", look: "sombrerito", bubble: orders.length ? `${filled} ejecutadas, ${rejected} rechazadas` : "Nada que ejecutar", summary: lastRun ? (orders.length ? `${orders.length} órdenes: ${filled} ejecutadas, ${rejected} rechazadas.` : "No hubo órdenes que ejecutar.") : null },
     { id: "profesor", name: "Profesor", role: "IA (Claude)", ai: true, hair: "#3a2a1e", look: "copa", bubble: "Te lo explico en sencillo", summary: expl?.headline ?? null },
-    { id: "academia", name: "Academia", role: "IA (Claude)", ai: true, hair: "#4a3020", look: "patillas-copa", bubble: null, summary: ac ? `Semana ${ac.period} · nota ${ac.content.grade}. ${ac.summary}` : "Hará su primera revisión el viernes por la noche." },
+    { id: "academia", name: "Academia", role: "IA (Claude)", ai: true, hair: "#4a3020", look: "patillas-copa", bubble: null, summary: ac ? `Revisión del ${ac.period} · nota ${ac.content.grade}. ${ac.summary}` : "Hará su primera revisión el viernes por la noche." },
     { id: "auditor", name: "Auditor", role: "Código", ai: false, hair: "#1f1f1f", look: "sombrerito", bubble: null, summary: lastClose ? `Último cierre del día: ${lastClose.run_date}.` : null },
   ];
 
@@ -199,9 +199,9 @@ export default async function OficinaPage() {
       role: "IA (Claude)",
       ai: true,
       when: "Viernes por la noche, tras el cierre",
-      does: "Hace el post-mortem de la semana: compara cada decisión con el resultado, pone nota al proceso, escribe lecciones y reescribe el manual de estrategia que sigue el equipo.",
+      does: "Cada día, tras el cierre, explica por qué la cartera ganó o perdió (posición a posición frente al MSCI World), pone nota al proceso, escribe lecciones y actualiza el manual de estrategia que sigue el equipo en la sesión siguiente.",
       at: ac?.at,
-      summary: ac ? `Semana ${ac.period} · nota ${ac.content.grade}. ${ac.summary}` : "Su primera revisión será este viernes.",
+      summary: ac ? `Revisión del ${ac.period} · nota ${ac.content.grade}. ${ac.summary}` : "Su primera revisión será hoy, tras el cierre.",
     },
     {
       id: "auditor",
@@ -256,21 +256,27 @@ export default async function OficinaPage() {
       </div>
 
       <Section title="Academia: manual de estrategia y lecciones">
-        {!ac && <Empty>La academia hará su primera revisión este viernes por la noche, tras el cierre del mercado.</Empty>}
+        {!ac && <Empty>La academia hará su primera revisión esta noche, tras el cierre del mercado.</Empty>}
         {ac && (
           <div className="space-y-4 text-sm">
             <div>
               <p className="text-xs text-muted">
-                Manual vigente · semana {ac.period} · nota de la semana: <strong className="text-ink">{ac.content.grade}</strong>
+                Manual vigente · revisión del {ac.period} · nota del día: <strong className="text-ink">{ac.content.grade}</strong>
               </p>
               <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-surface-2 p-3 font-sans text-ink-2">{ac.content.playbook}</pre>
             </div>
             {academy.map((a) => (
               <details key={a.id} className="rounded-lg border border-line p-3" open={a.id === ac.id}>
                 <summary className="cursor-pointer font-medium">
-                  Semana {a.period} · nota {a.content.grade}
+                  Revisión del {a.period} · nota {a.content.grade}
                 </summary>
                 <p className="mt-2 text-ink-2">{a.summary}</p>
+                {a.content.why && (
+                  <>
+                    <p className="mt-3 text-xs font-medium text-muted">Por qué ganó o perdió</p>
+                    <p className="mt-1 text-ink-2">{a.content.why}</p>
+                  </>
+                )}
                 <p className="mt-3 text-xs font-medium text-muted">Lecciones</p>
                 <ul className="mt-1 space-y-2">
                   {(a.content.lessons as Row[]).map((l) => (
@@ -292,7 +298,7 @@ export default async function OficinaPage() {
                 )}
                 {(a.content.experiments as string[]).length > 0 && (
                   <>
-                    <p className="mt-3 text-xs font-medium text-muted">Hipótesis para la semana siguiente</p>
+                    <p className="mt-3 text-xs font-medium text-muted">Hipótesis para las próximas sesiones</p>
                     <ul className="mt-1 list-disc pl-5 text-ink-2">
                       {(a.content.experiments as string[]).map((c) => (
                         <li key={c}>{c}</li>

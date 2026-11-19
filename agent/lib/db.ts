@@ -54,6 +54,9 @@ export function toExperiment(r: Row): Experiment {
       allowFractional: r.allow_fractional,
       riskFreeRate: Number(r.risk_free_rate),
       maxQuoteAgeMinutes: Number(r.max_quote_age_minutes),
+      minOrderEur: r.min_order_eur === undefined || r.min_order_eur === null ? DEFAULT_CONFIG.minOrderEur : Number(r.min_order_eur),
+      dividendTaxPct: r.dividend_tax_pct === undefined || r.dividend_tax_pct === null ? DEFAULT_CONFIG.dividendTaxPct : Number(r.dividend_tax_pct),
+      capitalGainsTax: r.capital_gains_tax ?? DEFAULT_CONFIG.capitalGainsTax,
     },
   };
 }

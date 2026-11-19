@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { sessionFor, zonedParts, zonedTimeToUtc } from "@/core/calendar";
 import { eur } from "@/core/money";
+import { realizedGainInYear, savingsTax } from "@/core/taxes";
 import { applyEvent, quantityHeldBefore } from "@/core/portfolio";
 import type { LedgerEvent, MarketId } from "@/core/types";
 import { adminClient, finishRun, insertChained, insertQuotes, listStartedExperiments, readAll, reserveRun, type Db, type Experiment } from "./lib/db";
@@ -104,13 +105,14 @@ async function closeExperiment(db: Db, exp: Experiment, now: Date, hostname: str
         let ledger: LedgerEvent;
         if (ev.kind === "dividend") {
           if (!rate) continue;
-          const cash = eur((qty * ev.amount!) / rate);
+          // Neto de impuestos: se aplica el porcentaje del experimento (19 % por defecto) al bruto.
+        const cash = eur(((qty * ev.amount!) / rate) * (1 - exp.config.dividendTaxPct));
           await insertChained(db, "corporate_actions", {
             experiment_id: exp.id, run_id: run.id, at: now, symbol, kind: "dividend", ex_date: exDate,
             amount_local: ev.amount, currency, quantity_held: qty, fx_rate: rate, cash_eur: cash, source: provider.name,
           });
           ledger = { type: "dividend", at: exAt, symbol, cashEur: cash };
-          notes.push(`Dividendo ${symbol}: ${qty} × ${ev.amount} ${currency} = ${cash} €`);
+          notes.push(`Dividendo ${symbol}: ${qty} × ${ev.amount} ${currency} = ${cash} € netos (impuesto ${(exp.config.dividendTaxPct * 100).toFixed(0)} %)`);
         } else {
           await insertChained(db, "corporate_actions", {
             experiment_id: exp.id, run_id: run.id, at: now, symbol, kind: "split", ex_date: exDate,
@@ -122,6 +124,30 @@ async function closeExperiment(db: Db, exp: Experiment, now: Date, hostname: str
         state.events.push(ledger);
         applyEvent(state.portfolio, ledger);
         existing.add(`${symbol}|${ev.kind}|${exDate}`);
+      }
+    }
+
+    // 3b. IRPF del ahorro: en el primer cierre de cada año se paga el impuesto sobre las ganancias
+    //     netas realizadas el año anterior (las pérdidas del mismo año compensan).
+    if (exp.config.capitalGainsTax) {
+      const taxYear = Number(runDate.slice(0, 4)) - 1;
+      const taxSymbol = `IRPF-${taxYear}`;
+      const started = exp.startedAt!.getUTCFullYear() <= taxYear;
+      const alreadyPaid = [...existing].some((k) => k.startsWith(`${taxSymbol}|tax|`));
+      if (started && !alreadyPaid) {
+        const gain = realizedGainInYear(state.portfolio.closedTrades, taxYear);
+        const tax = savingsTax(gain);
+        if (tax > 0) {
+          await insertChained(db, "corporate_actions", {
+            experiment_id: exp.id, run_id: run.id, at: now, symbol: taxSymbol, kind: "tax", ex_date: runDate,
+            amount_local: gain, currency: "EUR", cash_eur: -tax, source: "IRPF base del ahorro (cálculo propio)",
+          });
+          const ledger: LedgerEvent = { type: "tax", at: new Date(`${runDate}T00:00:00Z`), year: taxYear, cashEur: -tax };
+          state.events.push(ledger);
+          applyEvent(state.portfolio, ledger);
+          existing.add(`${taxSymbol}|tax|${runDate}`);
+          notes.push(`IRPF ${taxYear}: ganancia neta realizada ${gain} € → impuesto ${tax} € pagado desde el efectivo`);
+        }
       }
     }
 

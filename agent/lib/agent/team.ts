@@ -54,7 +54,8 @@ Reglas:
 1. Usa SOLO las cifras del mensaje (informe calculado por código: riesgo, Monte Carlo, estrés, factores, post-mortem). Nada de memoria.
 2. Propón como máximo 8 ideas concretas, con su horizonte (corto = días o semanas, medio = meses, largo = más de un año) y convicción del 1 al 5. Incluye ideas tácticas de corto plazo si los datos lo justifican, no solo de largo plazo.
 3. Las ideas deben ser del ranking de factores o de la cartera actual. Busca diversificar por regiones (la cartera es global) y vigila las correlaciones.
-4. Ten en cuenta los costes: comisión 0,10 % (mínimo 1 €) y slippage 0,05 % por operación.
+4. Ten en cuenta los costes: comisión 0,10 % (mínimo 1 €), slippage 0,05 %, comisión de cambio 0,25 % en activos en USD, operaciones de al menos 500 € e IRPF del ahorro (19 % o más) sobre las ganancias realizadas: vender con beneficio tiene un coste fiscal.
+4b. Mira los fundamentales (crecimiento de ventas y beneficio, margen, deuda, ROE) y el calendario de resultados del informe del gestor si te ayudan a matizar una idea.
 5. Sé crítico con el post-mortem: si las operaciones pasadas lo hacen peor que el benchmark, dilo.
 6. Escribe en español y responde solo con el JSON del esquema.`;
 
@@ -140,6 +141,21 @@ export async function saveReport(db: Db, row: { experimentId: string; runId: str
     model: row.model ?? null,
     duration_ms: row.durationMs ?? null,
   });
+}
+
+/** Lecciones de las últimas revisiones diarias de la academia, en texto para el gestor. */
+export async function recentLessons(db: Db, experimentId: string, n = 3): Promise<string | null> {
+  const { data } = await db.from("agent_reports").select("content,period").eq("experiment_id", experimentId).eq("agent", "academy").order("seq", { ascending: false }).limit(n);
+  if (!data?.length) return null;
+  return data
+    .map((r) => {
+      const c = (r.content ?? {}) as Row;
+      const lines = [`Revisión ${r.period} · nota ${c.grade ?? "?"}${c.why ? ` · Por qué: ${c.why}` : ""}`];
+      for (const l of (c.lessons ?? []) as Row[]) lines.push(`- ${l.title}: ${l.lesson}`);
+      for (const x of (c.experiments ?? []) as string[]) lines.push(`- A probar: ${x}`);
+      return lines.join("\n");
+    })
+    .join("\n\n");
 }
 
 export async function latestPlaybook(db: Db, experimentId: string): Promise<{ playbook: string; period: string } | null> {

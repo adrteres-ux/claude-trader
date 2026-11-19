@@ -8,11 +8,12 @@ import { madridDate } from "@/core/calendar";
 import type { DailyClose } from "@/core/indicators";
 import type { Bar } from "@/core/limits";
 import { marketFromYahooExchange } from "@/core/markets";
-import type { CorporateEvent, MarketDataProvider, MarketQuote, NewsItem } from "./provider";
+import type { CorporateEvent, Fundamentals, MarketDataProvider, MarketQuote, NewsItem } from "./provider";
 
 const SOURCE = "Yahoo Finance";
 const NO_VALIDATE = { validateResult: false } as const;
 const CACHE_DIR = path.resolve(process.cwd(), "agent", ".cache", "history");
+const FUND_CACHE_DIR = path.resolve(process.cwd(), "agent", ".cache", "fundamentals");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = any;
@@ -88,6 +89,7 @@ export class YahooProvider implements MarketDataProvider {
           marketCap: num(q.marketCap),
           dividendYield: dy,
           previousClose: num(q.regularMarketPreviousClose),
+          earningsDate: toDate(q.earningsTimestamp ?? q.earningsTimestampStart ?? null),
         });
       }
     }
@@ -139,6 +141,37 @@ export class YahooProvider implements MarketDataProvider {
       if (date && ratio && ratio !== 1) out.push({ kind: "split", date, ratio });
     }
     return out.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }
+
+  /** Ventas, márgenes, deuda y ROE (módulo financialData). Se cachean en disco un día. Null si no hay datos. */
+  async getFundamentals(symbol: string): Promise<Fundamentals | null> {
+    const file = path.join(FUND_CACHE_DIR, `${symbol.replace(/[^A-Za-z0-9.-]/g, "_")}_${madridDate(new Date())}.json`);
+    try {
+      return JSON.parse(fs.readFileSync(file, "utf8")) as Fundamentals | null;
+    } catch {
+      // sin caché
+    }
+    let out: Fundamentals | null = null;
+    try {
+      const raw: Raw = await withRetry(`Yahoo fundamentales ${symbol}`, () => this.yf.quoteSummary(symbol, { modules: ["financialData"] }, NO_VALIDATE) as Promise<Raw>, 2);
+      const f = raw?.financialData;
+      if (f) {
+        const d2e = num(f.debtToEquity);
+        out = {
+          revenueGrowth: num(f.revenueGrowth),
+          earningsGrowth: num(f.earningsGrowth),
+          operatingMargin: num(f.operatingMargins),
+          profitMargin: num(f.profitMargins),
+          debtToEquity: d2e === null ? null : d2e / 100, // Yahoo lo da en %
+          returnOnEquity: num(f.returnOnEquity),
+        };
+      }
+    } catch {
+      return null; // no se cachea un fallo: se reintenta en la próxima ejecución
+    }
+    fs.mkdirSync(FUND_CACHE_DIR, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(out));
+    return out;
   }
 
   async getNews(query: string, count: number): Promise<NewsItem[]> {

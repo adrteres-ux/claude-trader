@@ -13,7 +13,8 @@ import { MAX_WATCHLIST_EXTRA } from "@/core/universe";
 import { slotInfo } from "@/lib/schedule";
 import { callClaude } from "./lib/agent/claude";
 import { explainRun } from "./lib/agent/explain";
-import { latestPlaybook, quantMemoText, riskMemoText, runTeam, saveReport } from "./lib/agent/team";
+import { latestPlaybook, quantMemoText, recentLessons, riskMemoText, runTeam, saveReport } from "./lib/agent/team";
+import { realizedGainInYear, savingsTax } from "@/core/taxes";
 import { buildQuantReport, quantReportText, type QuantReport } from "./lib/quant-report";
 import { buildPrompt, systemPrompt } from "./lib/agent/prompt";
 import { decisionJsonSchema, parseDecision, type Decision } from "./lib/agent/schema";
@@ -220,6 +221,45 @@ async function runBody(ctx: {
   const lastOrders = db
     ? ((await db.from("orders").select("at,symbol,side,quantity,status,reject_reason").eq("experiment_id", exp.id).order("seq", { ascending: false }).limit(15)).data ?? []).reverse()
     : [];
+  // Memoria: por qué se compró cada posición abierta (motivo de la última compra + tesis de ese día).
+  const positionTheses: NonNullable<Parameters<typeof buildPrompt>[0]["positionTheses"]> = [];
+  if (db && held.length) {
+    const { data: buys } = await db
+      .from("orders")
+      .select("symbol,at,run_id,rationale")
+      .eq("experiment_id", exp.id)
+      .eq("status", "filled")
+      .eq("side", "buy")
+      .in("symbol", held)
+      .order("seq", { ascending: false });
+    const lastBuy = new Map<string, Record<string, unknown>>();
+    for (const b of buys ?? []) if (!lastBuy.has(String(b.symbol))) lastBuy.set(String(b.symbol), b);
+    const runIds = [...new Set([...lastBuy.values()].map((b) => b.run_id).filter(Boolean))] as string[];
+    const { data: entries } = runIds.length
+      ? await db.from("journal_entries").select("run_id,thesis,change_mind").in("run_id", runIds).eq("kind", "decision")
+      : { data: [] as Record<string, unknown>[] };
+    const byRun = new Map((entries ?? []).map((e: Record<string, unknown>) => [String(e.run_id), e]));
+    for (const symbol of held) {
+      const b = lastBuy.get(symbol);
+      const j = b ? byRun.get(String(b.run_id)) : undefined;
+      positionTheses.push({
+        symbol,
+        boughtAt: b ? String(b.at).slice(0, 16).replace("T", " ") : "?",
+        rationale: (b?.rationale as string) ?? null,
+        thesis: (j?.thesis as string) ?? null,
+        changeMind: (j?.change_mind as string) ?? null,
+      });
+    }
+  }
+  const lessons = db ? await recentLessons(db, exp.id, 3) : null;
+  // Fiscalidad: plusvalías realizadas en el año y el IRPF que se pagaría en enero.
+  let taxNote: string | undefined;
+  if (exp.config.capitalGainsTax) {
+    const year = Number(madridDate(now).slice(0, 4));
+    const gain = realizedGainInYear(state.portfolio.closedTrades, year);
+    taxNote = `Fiscalidad ${year}: ganancia neta realizada ${gain.toFixed(2)} € → IRPF estimado ${savingsTax(gain).toFixed(2)} € (se paga del efectivo en enero). Impuestos ya pagados: ${state.portfolio.taxesEur.toFixed(2)} €.`;
+  }
+
   const prompt = buildPrompt({
     now,
     slotLabel: ctx.slotLabel,
@@ -260,6 +300,9 @@ async function runBody(ctx: {
     news: market.news,
     universe: market.universe,
     team: teamText,
+    positionTheses,
+    lessons: lessons ?? undefined,
+    taxNote,
   });
   const sys = systemPrompt(exp.config, MAX_WATCHLIST_EXTRA);
   log(`Prompt: ${prompt.length} caracteres. Llamando a claude -p (${ctx.model})...`);

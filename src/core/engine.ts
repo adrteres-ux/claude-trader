@@ -19,7 +19,8 @@ export type RejectCode =
   | "NO_FX"
   | "INSUFFICIENT_CASH"
   | "INSUFFICIENT_SHARES"
-  | "MAX_POSITION";
+  | "MAX_POSITION"
+  | "MIN_ORDER_SIZE";
 
 export interface PendingOrder {
   orderId?: number;
@@ -191,6 +192,18 @@ export function executeOrders(input: EngineInput): EngineOutput {
       }
     }
     const checkPrice = executable ? fillPrice : request.limitPrice!;
+
+    // Importe mínimo por operación (evita que la comisión mínima se coma la operación).
+    // Una venta que cierra la posición entera se permite aunque sea pequeña.
+    if (cfg.minOrderEur > 0) {
+      const grossEur = (qty * checkPrice) / rate;
+      const held = portfolio.positions.get(symbol)?.quantity ?? 0;
+      const closesPosition = request.side === "sell" && Math.abs(qty - held) < 1e-9;
+      if (grossEur < cfg.minOrderEur && !closesPosition) {
+        reject("MIN_ORDER_SIZE", `Operación de ${grossEur.toFixed(2)} € por debajo del mínimo de ${cfg.minOrderEur.toFixed(0)} € (solo se permite si vende la posición entera)`, quote);
+        continue;
+      }
+    }
 
     const reservedCash = pending.filter((p) => p.side === "buy").reduce((s, p) => s + p.reservedCashEur, 0);
     if (request.side === "sell") {

@@ -177,7 +177,7 @@ export default async function CuantitativoPage() {
           </div>
           <Explain>
             Una compra es un acierto si desde entonces el activo lo ha hecho mejor que el {bench}; una venta, si lo ha hecho peor. Con pocas semanas es casi todo suerte: la
-            academia lo revisa cada viernes.
+            academia lo revisa cada día tras el cierre.
           </Explain>
         </Section>
       ) : null}

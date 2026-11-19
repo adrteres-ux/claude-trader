@@ -27,6 +27,7 @@ export interface PortfolioState {
   dividendsEur: number;
   commissionsEur: number;
   fxFeesEur: number;
+  taxesEur: number; // impuestos pagados (IRPF del ahorro sobre ganancias realizadas)
   turnoverEur: number; // suma de importes comprados y vendidos
   closedTrades: ClosedTrade[];
 }
@@ -48,6 +49,7 @@ export function derivePortfolio(initialCapital: number, events: LedgerEvent[]): 
     dividendsEur: 0,
     commissionsEur: 0,
     fxFeesEur: 0,
+    taxesEur: 0,
     turnoverEur: 0,
     closedTrades: [],
   };
@@ -61,6 +63,11 @@ export function applyEvent(state: PortfolioState, ev: LedgerEvent): void {
   if (ev.type === "dividend") {
     state.cashEur += ev.cashEur;
     state.dividendsEur += ev.cashEur;
+    return;
+  }
+  if (ev.type === "tax") {
+    state.cashEur += ev.cashEur;
+    state.taxesEur += -ev.cashEur;
     return;
   }
   if (ev.type === "split") {
