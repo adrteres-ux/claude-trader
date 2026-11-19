@@ -19,8 +19,9 @@ export interface MsgInput {
   positions: MsgPosition[];
   headline?: string | null; // una frase: por qué
   movers?: { label: string; why: string }[]; // 2-3 posiciones que más se han movido
-  news?: { title: string; source: string }[];
-  watch?: string[];
+  news?: { title: string; source: string; why?: string | null }[];
+  tomorrowLabel?: string;
+  tomorrow?: string[];
 }
 
 const eur0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0, useGrouping: "always" });
@@ -74,11 +75,15 @@ export function buildPortfolioMessage(m: MsgInput): string {
   if (m.news?.length) {
     L.push("");
     L.push("📰 <b>Noticias</b>");
-    for (const n of m.news) L.push(`• ${escapeHtml(n.title)} <i>(${escapeHtml(n.source)})</i>`);
+    for (const n of m.news) {
+      L.push(`• <b>${escapeHtml(n.title)}</b> <i>(${escapeHtml(n.source)})</i>`);
+      if (n.why) L.push(`  ${escapeHtml(n.why)}`);
+    }
   }
-  if (m.watch?.length) {
+  if (m.tomorrow?.length) {
     L.push("");
-    L.push(`👀 ${m.watch.map(escapeHtml).join(" · ")}`);
+    L.push(`🗓 <b>Mañana${m.tomorrowLabel ? ` (${escapeHtml(m.tomorrowLabel)})` : ""}</b>`);
+    for (const t of m.tomorrow) L.push(`• ${escapeHtml(t)}`);
   }
   if (stale.length) {
     L.push("");
