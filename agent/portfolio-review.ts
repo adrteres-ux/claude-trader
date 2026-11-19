@@ -160,7 +160,11 @@ async function main() {
   if (!positions.length) throw new Error("No hay posiciones en pf_positions.");
   const { data: valRows } = await db.from("pf_valuations").select("*").order("price_date");
   const lastVal = new Map<string, Row>();
-  for (const v of (valRows ?? []) as Row[]) lastVal.set(v.isin, v);
+  const history = new Map<string, Row[]>(); // valoraciones guardadas por posición, de más antigua a más reciente
+  for (const v of (valRows ?? []) as Row[]) {
+    lastVal.set(v.isin, v);
+    history.set(v.isin, [...(history.get(v.isin) ?? []), v]);
+  }
   // Fecha del último movimiento ya contado en un resumen anterior (para no repetirlo).
   const { data: prevReviews } = await db.from("pf_reviews").select("review_date,content").lt("review_date", today).order("review_date", { ascending: false }).limit(10);
   const lastReported = new Map<string, string>();
@@ -174,7 +178,12 @@ async function main() {
     let sym: string | null = p.kind !== "fondo" && p.ticker ? String(p.ticker) : null;
     if (!sym) {
       const found = await yahoo.searchSymbols(p.isin);
-      const pick = found.find((f) => f.quoteType === "MUTUALFUND") ?? found.find((f) => f.quoteType === "ETF") ?? found[0];
+      // Fondos: SOLO el valor liquidativo oficial (símbolos de Morningstar "0P…"), nunca cotizaciones de una
+      // bolsa (p. ej. "….SG" de Stuttgart), que pueden ir desfasadas respecto al valor liquidativo.
+      const pick =
+        p.kind === "fondo"
+          ? found.find((f) => f.symbol.startsWith("0P"))
+          : (found.find((f) => f.quoteType === "ETF" || f.quoteType === "EQUITY") ?? found[0]);
       sym = pick?.symbol ?? null;
       log(`Símbolo de ${p.name}: ${sym ?? "no encontrado en Yahoo"}`);
     }
@@ -195,39 +204,49 @@ async function main() {
   const days: PosDay[] = positions.map((p) => {
     const q: MarketQuote | undefined = p.yahoo_symbol ? quotes.get(p.yahoo_symbol) : undefined;
     const lv = lastVal.get(p.isin);
+    const hist = history.get(p.isin) ?? [];
     const qty = Number(p.quantity);
     const isUsd = p.currency === "USD";
     const rateNow = isUsd ? fxNow : 1;
-    const ratePrev = isUsd ? fxPrev : 1;
     const investedEur = isUsd && rateNow ? Number(p.invested) / rateNow : Number(p.invested);
-    const priceDate = q ? madridDate(q.quoteTime) : null;
-    // Movimiento nuevo = su fecha es posterior a la del último resumen enviado (no a la última valoración guardada).
     const reported = lastReported.get(p.isin);
-    const newData = !!q && !!rateNow && (!reported || priceDate! > reported);
-    if (!q || !rateNow) {
-      const v = lv ? Number(lv.value_eur) : investedEur;
-      return { p, symbol: p.yahoo_symbol ?? null, price: lv ? Number(lv.price) : null, priceDate: lv?.price_date ?? null, newData: false, valueEur: v, prevValueEur: v, dayEur: 0, dayPct: null, investedEur, totalGainEur: v - investedEur, note: "sin precio en Yahoo hoy" };
+
+    // Precio vigente = el MÁS RECIENTE entre Yahoo y lo ya guardado (capturas de MyInvestor o días anteriores).
+    // Yahoo a veces va un día por detrás de MyInvestor en los fondos: nunca se retrocede a un precio más viejo.
+    const yahooDate = q ? madridDate(q.quoteTime) : null;
+    const useYahoo = !!q && !!rateNow && (!lv || yahooDate! >= String(lv.price_date));
+    const price = useYahoo ? q!.price : lv ? Number(lv.price) : null;
+    const priceDate = useYahoo ? yahooDate : lv ? String(lv.price_date) : null;
+    const rate = useYahoo ? rateNow : lv?.fx_eurusd ? Number(lv.fx_eurusd) : rateNow;
+    if (price === null || !priceDate || !rate) {
+      return { p, symbol: p.yahoo_symbol ?? null, price: null, priceDate: null, newData: false, valueEur: investedEur, prevValueEur: investedEur, dayEur: 0, dayPct: null, investedEur, totalGainEur: 0, note: "sin precio disponible" };
     }
-    const valueEur = (qty * q.price) / rateNow;
-    if (!newData) {
-      return { p, symbol: p.yahoo_symbol, price: q.price, priceDate, newData, valueEur, prevValueEur: valueEur, dayEur: 0, dayPct: 0, investedEur, totalGainEur: valueEur - investedEur, note: `sin valor nuevo: el del ${priceDate} ya salió en el último resumen` };
+    const valueEur = (qty * price) / rate;
+
+    // Movimiento ya contado en un resumen anterior: no se repite.
+    if (reported && priceDate <= reported) {
+      return { p, symbol: p.yahoo_symbol, price, priceDate, newData: false, valueEur, prevValueEur: valueEur, dayEur: 0, dayPct: 0, investedEur, totalGainEur: valueEur - investedEur, note: `sin valor nuevo: el del ${priceDate} ya salió en el último resumen` };
     }
-    // Precio anterior: el cierre previo de Yahoo; si no lo da, la última valoración guardada de un día anterior.
-    const prevPrice = q.previousClose ?? (lv && String(lv.price_date) < priceDate! ? Number(lv.price) : q.price);
-    const prevValueEur = (qty * prevPrice) / (ratePrev || rateNow);
+
+    // Precio anterior: la última valoración guardada de un día anterior; si no hay, el cierre previo de Yahoo.
+    const prevStored = [...hist].reverse().find((v) => String(v.price_date) < priceDate);
+    let prevValueEur: number;
+    if (prevStored) prevValueEur = Number(prevStored.value_eur);
+    else if (useYahoo && q!.previousClose) prevValueEur = (qty * q!.previousClose) / (isUsd ? (fxPrev ?? rate) : 1);
+    else prevValueEur = valueEur;
     return {
       p,
       symbol: p.yahoo_symbol,
-      price: q.price,
+      price,
       priceDate,
-      newData,
+      newData: useYahoo && (!lv || priceDate > String(lv.price_date)),
       valueEur,
       prevValueEur,
       dayEur: valueEur - prevValueEur,
       dayPct: prevValueEur > 0 ? valueEur / prevValueEur - 1 : null,
       investedEur,
       totalGainEur: valueEur - investedEur,
-      note: priceDate !== today ? `valor liquidativo del ${priceDate}` : null,
+      note: priceDate !== today ? `valor del ${priceDate.slice(8, 10)}/${priceDate.slice(5, 7)}` : null,
     };
   });
   days.sort((a, b) => b.valueEur - a.valueEur);
@@ -312,7 +331,7 @@ async function main() {
     dayEur,
     dayPct,
     invested,
-    positions: days.map((d) => ({ label: labelOf(d.p), dayEur: d.dayEur, dayPct: d.dayPct, valueEur: d.valueEur, stale: !d.newData })),
+    positions: days.map((d) => ({ label: labelOf(d.p), dayEur: d.dayEur, dayPct: d.dayPct, valueEur: d.valueEur, stale: !!d.note?.startsWith("sin ") })),
     headline: review?.headline ?? null,
     movers: days.filter((d) => why.has(d.p.isin)).map((d) => ({ label: labelOf(d.p), why: why.get(d.p.isin)! })),
     news: (review?.news ?? []).map((n) => ({ title: n.title, source: n.source, why: n.why_it_matters })),
@@ -327,7 +346,7 @@ async function main() {
 
   // Guardar valoraciones nuevas e informe.
   const newVals = days
-    .filter((d) => d.price !== null && d.priceDate && d.symbol)
+    .filter((d) => d.newData && d.price !== null && d.priceDate && d.symbol)
     .map((d) => ({
       isin: d.p.isin,
       price_date: d.priceDate,

@@ -115,6 +115,11 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
   `agent/lib/portfolio-message.ts` — cabecera con el día y el total, una frase de por qué, gráfico de barras en
   texto (<pre>) con lo ganado/perdido por posición (`pf_positions.short_name`), 2-3 posiciones explicadas, máx.
   3 noticias y 2 citas. Sin imágenes ni servicios externos (los datos no salen de Telegram).
+- Precios de Mi cartera (2026-11-19): Yahoo va a menudo un día por detrás de MyInvestor en los valores
+  liquidativos. Regla: el precio vigente es el MÁS RECIENTE entre Yahoo y lo guardado (nunca se retrocede);
+  el día se calcula contra la última valoración guardada de un día anterior. Fondos: solo símbolos de
+  Morningstar "0P…" (no cotizaciones de bolsa como `.SG`, que se desvían del VL). Posible mejora: fuente de VL
+  más rápida (Morningstar).
 
 ## Historia heredada del proyecto original (PolParis)
 - Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.
