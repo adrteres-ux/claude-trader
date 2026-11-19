@@ -7,7 +7,8 @@ Paper trading puro: **ningún bróker ni dinero real**. No es consejo financiero
 
 El usuario es estudiante de ingeniería y empieza de cero: explicar cada paso brevemente, dar comandos
 listos para copiar en un solo bloque (PowerShell) y guías paso a paso para Supabase/Vercel/GitHub.
-Se trabaja desde 2 PCs → este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
+Fork de PolParis/claude-trader para clonarlo y mejorarlo (usuario: Adrià, adrteres-ux).
+Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
 
 ## Reglas no negociables
 - Coste 0 €: prohibida la API de Anthropic y cualquier servicio de pago. Solo Vercel Hobby, Supabase Free,
@@ -47,7 +48,8 @@ Se trabaja desde 2 PCs → este archivo es la fuente de verdad del estado del pr
   dividendos/splits + ancla de hashes en `integrity/anchors.jsonl`.
 
 ## Infraestructura
-- Supabase: proyecto `claude-trader`, ref `exbawucbremmdnoyupho`, región eu-central-1 (Frankfurt), org free.
+- Supabase: proyecto `simulador-bolsa`, ref `vicxlxfktwoyagebsbvw`, región eu-central-1 (Frankfurt), org free.
+- Repo: https://github.com/adrteres-ux/claude-trader (fork de PolParis/claude-trader, sin licencia: pedir permiso antes de publicar derivados).
 - Datos: yahoo-finance2 (gratis, sin clave, no oficial). Retraso declarado por Yahoo: 15 min Xetra/BME/Nasdaq
   (campo `exchangeDataDelayedBy`), 0 Euronext Ámsterdam, 20 NYSE; se registra el retraso medido
   (fetched_at − regularMarketTime) en cada precio.
@@ -62,20 +64,20 @@ Se trabaja desde 2 PCs → este archivo es la fuente de verdad del estado del pr
 - `npm run run-agent -- --slot P0|S0|S1|S2` (sin `--slot` = manual; `--briefing` = preapertura a mano; `--no-team` sin analistas)
 - `npm run explain` (genera las explicaciones que falten), `npm run close-day`, `npm run start-experiment -- --code <code>`, `npm run create-user -- <email>`
 
-## Estado de fases (actualizado 2026-10-18)
-- [x] 0. Preparación — proyecto Supabase creado, Next.js 16 + Tailwind 4, `.env.local`
-- [x] 1. BD + motor con tests — migraciones aplicadas; hash de la BD == hash de Node verificado
-- [x] 2. Datos de mercado — Yahoo: 107/107 activos del universo OK (`npm run market-check`)
-- [x] 3. Agente `claude -p` — prueba offline real OK (16 k caracteres de prompt, ~15 s, JSON válido)
-- [x] 4. Dashboard — 7 páginas + login + CSV; build y lint OK
-- [x] 5. Benchmarks y métricas — compra día 1, cierre diario, dividendos/splits, Sharpe, DD...
-- [x] 6. Hash chain, duplicados, repo GitHub (PolParis/claude-trader), secretos y web en Vercel
-- [x] 7. Tareas `ClaudeTrader-S1/S2` instaladas en el PC principal (PcPol)
-- [ ] 8. Periodo de prueba (experimento `test-1`) → fecha oficial
+## Estado de fases del clon (actualizado 2026-11-19)
+- [x] 0. Fork en GitHub (adrteres-ux/claude-trader)
+- [x] 1. Proyecto Supabase `simulador-bolsa` creado y 6 migraciones aplicadas (14 tablas, experimento `test-1`)
+- [ ] 2. En el PC: Node 20+, Git, Claude Code con sesión iniciada; `git clone`, `npm install`, `npm test`
+- [ ] 3. `.env.local` (copiar `.env.example` y añadir `SUPABASE_SECRET_KEY`)
+- [ ] 4. `npm run market-check` y `npm run run-agent -- --offline --force --print-prompt`
+- [ ] 5. Primera ejecución real (`npm run run-agent`) con mercados abiertos
+- [ ] 6. Tareas programadas (`scripts/windows/install-tasks.ps1`)
+- [ ] 7. Web en Vercel (solo variables NEXT_PUBLIC_*)
+- [ ] 8. Periodo de prueba (`test-1`) → experimento oficial
+- [ ] 9. Mejoras propias (ver guía "Clon de Claude vs. el Mercado")
 
-## Pendientes del usuario (manuales)
-- En el segundo PC: clonar el repo, `npm install` y copiar `.env.local` (NO instalar tareas).
-- Usuario web creado: polparis7@gmail.com.
+## Historia heredada del proyecto original (PolParis)
+- Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.
 
 ## Decisiones / notas
 - Mandato del usuario (2026-10-18): Claude debe buscar acciones individuales de todo el mundo (China,
@@ -95,7 +97,7 @@ Se trabaja desde 2 PCs → este archivo es la fuente de verdad del estado del pr
   Consumo: ~25 k tokens la decisión + ~10 k cada analista; prompt del gestor ~40 k caracteres.
 - Decisión del usuario (2026-10-23): sin límite de operaciones por día/semana. Va en el system prompt del
   gestor, la academia y la gestora de riesgos (prevalece sobre el manual v1, que tenía "máx. 3-4 por semana").
-- Web: https://claude-trader-livid.vercel.app (despliegue automático al hacer push a main).
+- Web original: https://claude-trader-livid.vercel.app. La del clon: pendiente (despliegue automático al hacer push a main).
 - Rama principal `main`. Repo público (GitHub Actions gratis + transparencia).
 - `cacheComponents` desactivado en `next.config.ts`: la web es privada y dinámica (sesión en cada petición).
 - `package.json` con `"type": "module"` (los scripts usan top-level await con tsx).
@@ -113,6 +115,6 @@ Se trabaja desde 2 PCs → este archivo es la fuente de verdad del estado del pr
   (PC dormido en batería, sin temporizadores de activación) no hace nada y el cierre la marca fallida.
 - Cierre diario: GitHub puede lanzar el cron con horas de retraso → antes de las 09:00 de Madrid se cierra
   el día anterior (`closingDay` en close-day.ts). 19/10: el cierre de GitHub falló (paso "Comprobar
-  secretos" añadido para diagnosticar); el del 20/10 se hizo a mano desde PcPol.
+  secretos" añadido para diagnosticar); el del 20/10 se hizo a mano desde el PC.
 - Anclas de integridad: solo las escribe GitHub Actions (`integrity/anchors.jsonl`); la página Integridad
   las compara con la BD.
