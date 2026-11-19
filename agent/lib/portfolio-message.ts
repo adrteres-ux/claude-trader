@@ -85,9 +85,7 @@ export function buildPortfolioMessage(m: MsgInput): string {
     L.push(`🗓 <b>Mañana${m.tomorrowLabel ? ` (${escapeHtml(m.tomorrowLabel)})` : ""}</b>`);
     for (const t of m.tomorrow) L.push(`• ${escapeHtml(t)}`);
   }
-  if (stale.length) {
-    L.push("");
-    L.push("<i>sin VL = el fondo aún no ha publicado su valor de hoy</i>");
-  }
+  L.push("");
+  L.push(`<i>Fondos: último valor liquidativo publicado (suele ser el del día anterior).${stale.length ? " sin VL = sin valor nuevo desde el último resumen." : ""}</i>`);
   return L.join("\n");
 }
