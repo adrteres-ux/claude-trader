@@ -1,9 +1,9 @@
 // Mensaje de Telegram del resumen diario: corto y visual (decisión del usuario, 2026-11-19).
-// Gráfico de barras en texto monoespaciado (<pre>), sin servicios externos: los datos no salen de Telegram.
+// Una línea por posición con el nombre del fondo y círculo verde/rojo; sin servicios externos: los datos no salen de Telegram.
 import { escapeHtml } from "./telegram";
 
 export interface MsgPosition {
-  label: string; // nombre corto (máx. ~12 caracteres)
+  label: string; // nombre del fondo como en MyInvestor (lo importante, ~25 caracteres)
   dayEur: number;
   dayPct: number | null;
   valueEur: number;
@@ -36,19 +36,16 @@ export const fmtSignedPct = (v: number | null) =>
   v === null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v * 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
 const dot = (v: number) => (v >= FLAT_EUR ? "🟢" : v <= -FLAT_EUR ? "🔴" : "⚪");
 
-const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s.padEnd(n));
-const padL = (s: string, n: number) => s.padStart(n);
-
-/** Una línea del gráfico: etiqueta, barra proporcional al mayor movimiento del día e importe. */
-export function barLine(p: MsgPosition, maxAbs: number, width = 8): string {
-  const label = pad(p.label, 12);
-  if (p.stale) return `${label}  ${"·".repeat(width)} ${padL("sin VL", 7)}`;
+/** Una línea por posición con el nombre del fondo: 🟢 sube, 🔴 baja, ⚪ sin cambio o sin valor nuevo.
+ *  Telegram no permite colorear texto, así que el color va en el círculo y en la barra. */
+export function positionLine(p: MsgPosition, maxAbs: number, width = 5): string {
+  const name = `<b>${escapeHtml(p.label)}</b>`;
+  if (p.stale) return `⚪ ${name} · <i>sin valor nuevo</i>`;
   const moved = Math.abs(p.dayEur) >= FLAT_EUR;
-  const n = maxAbs > 0 ? Math.round((Math.abs(p.dayEur) / maxAbs) * width) : 0;
-  const filled = moved ? Math.max(1, n) : 0;
-  const bar = "▰".repeat(filled) + "▱".repeat(width - filled);
-  const arrow = !moved ? "=" : p.dayEur > 0 ? "▲" : "▼";
-  return `${label} ${arrow}${bar} ${padL(moved ? fmtSignedEur(p.dayEur, 0) : "0 €", 7)}`;
+  if (!moved) return `⚪ ${name} · 0 €`;
+  const n = maxAbs > 0 ? Math.max(1, Math.round((Math.abs(p.dayEur) / maxAbs) * width)) : 1;
+  const bar = (p.dayEur > 0 ? "🟩" : "🟥").repeat(n);
+  return `${dot(p.dayEur)} ${name} ${bar} <b>${fmtSignedEur(p.dayEur)}</b> (${fmtSignedPct(p.dayPct)})`;
 }
 
 export function buildPortfolioMessage(m: MsgInput): string {
@@ -67,7 +64,7 @@ export function buildPortfolioMessage(m: MsgInput): string {
   const stale = m.positions.filter((p) => p.stale);
   const maxAbs = Math.max(0, ...live.map((p) => Math.abs(p.dayEur)));
   L.push("");
-  L.push(`<pre>${[...live, ...stale].map((p) => escapeHtml(barLine(p, maxAbs))).join("\n")}</pre>`);
+  for (const p of [...live, ...stale]) L.push(positionLine(p, maxAbs));
   if (m.movers?.length) {
     L.push("");
     for (const x of m.movers) L.push(`▸ <b>${escapeHtml(x.label)}</b>: ${escapeHtml(x.why)}`);
@@ -86,6 +83,6 @@ export function buildPortfolioMessage(m: MsgInput): string {
     for (const t of m.tomorrow) L.push(`• ${escapeHtml(t)}`);
   }
   L.push("");
-  L.push(`<i>Fondos: último valor liquidativo publicado (suele ser el del día anterior).${stale.length ? " sin VL = sin valor nuevo desde el último resumen." : ""}</i>`);
+  L.push(`<i>Fondos: último valor liquidativo publicado (suele ser el del día anterior).${stale.length ? " «Sin valor nuevo» = el fondo aún no ha publicado su valor de hoy." : ""}</i>`);
   return L.join("\n");
 }
