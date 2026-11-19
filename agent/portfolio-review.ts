@@ -9,13 +9,13 @@
 import { z } from "zod";
 import { madridDate } from "@/core/calendar";
 import { upcomingMacroEvents } from "@/core/macro-calendar";
-import { savingsTax } from "@/core/taxes";
 import { callAgent } from "./lib/agent/team";
 import { adminClient } from "./lib/db";
 import { isTrustedPublisher } from "./lib/market-data";
 import type { MarketQuote, NewsItem } from "./lib/market/provider";
 import { YahooProvider, mapLimit } from "./lib/market/yahoo";
-import { escapeHtml, sendTelegram, telegramConfigured } from "./lib/telegram";
+import { buildPortfolioMessage } from "./lib/portfolio-message";
+import { sendTelegram, telegramConfigured } from "./lib/telegram";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -78,15 +78,16 @@ function newsQueriesFor(p: Row): string[] {
 const text = (max: number) => z.string().trim().min(1).max(max);
 const ReviewSchema = z
   .object({
-    headline: text(160).describe("Titular del día de la cartera en una frase"),
-    day_story: text(900).describe("Por qué la cartera subió o bajó hoy, en 2-4 frases, con cifras del mensaje"),
+    headline: text(140).describe("UNA frase corta: por qué la cartera subió o bajó hoy"),
+    day_story: text(500).describe("Explicación del día en 2-3 frases cortas, con cifras del mensaje (para la web)"),
     positions: z
-      .array(z.object({ isin: z.string().trim().min(1).max(20), why: text(400).describe("Por qué se movió hoy esta posición (1-2 frases)") }).strict())
-      .max(20),
+      .array(z.object({ isin: z.string().trim().min(1).max(20), why: text(140).describe("Por qué se movió (una frase muy corta)") }).strict())
+      .max(3)
+      .describe("Solo las 2-3 posiciones que más se han movido hoy en euros"),
     news: z
-      .array(z.object({ title: text(160).describe("Titular traducido al español"), source: text(60), why_it_matters: text(300) }).strict())
-      .max(5),
-    watch: z.array(text(250)).max(3).describe("Qué vigilar en los próximos días (citas del calendario, resultados)"),
+      .array(z.object({ title: text(110).describe("Titular traducido al español, corto"), source: text(40), why_it_matters: text(160) }).strict())
+      .max(3),
+    watch: z.array(text(80)).max(2).describe("Citas próximas a vigilar, muy cortas (p. ej. 'IPC EE. UU. el 10/12')"),
   })
   .strict();
 type Review = z.infer<typeof ReviewSchema>;
@@ -97,8 +98,8 @@ Reglas:
 2. Para explicar cada posición, relaciónala con sus referencias (por ejemplo, un fondo de tecnología con el Nasdaq y los semiconductores; un fondo de defensa con Rheinmetall, Thales, Leonardo...). Si hay un titular que lo explique, cítalo. Si no hay una causa clara en los datos, dilo ("movimiento en línea con el mercado, sin noticia concreta").
 3. Los fondos publican su valor liquidativo con retraso: si una posición dice "sin valor liquidativo nuevo", explícalo así y no inventes su movimiento.
 4. Nada de recomendaciones de compra o venta: es un resumen informativo. Puedes señalar con neutralidad riesgos o concentraciones evidentes.
-5. Breve: todo el resumen debe leerse en menos de 5 minutos. Frases cortas.
-6. "news": como máximo 5 titulares de la lista, los más relevantes para ESTA cartera, traducidos al español.
+5. MUY breve y directo: el mensaje se lee en el móvil en menos de un minuto. Frases cortas, sin relleno ni repetir cifras que ya se ven.
+6. "positions": solo las 2-3 posiciones que más se han movido hoy en euros. "news": como máximo 3 titulares de la lista, los más relevantes para ESTA cartera, traducidos al español.
 7. Responde solo con el JSON del esquema.`;
 
 // ---------- Formato ----------
@@ -106,7 +107,6 @@ const eurF = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR"
 const eur = (v: number) => eurF.format(v);
 const signedEur = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${eurF.format(Math.abs(v))}`;
 const pct = (v: number | null) => (v === null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v * 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`);
-const arrow = (v: number) => (v > 0.00005 ? "🟢" : v < -0.00005 ? "🔴" : "⚪");
 const shortName = (n: string) => {
   const s = n.replace(/^(Fidelity Funds|JPMorgan Funds) - /, "");
   return s.length > 48 ? `${s.slice(0, 47)}…` : s;
@@ -261,43 +261,24 @@ async function main() {
     }
   }
 
-  // Mensaje de Telegram (cifras del código + explicación de Claude).
+  // Mensaje de Telegram: corto y visual (cifras del código + explicación de Claude).
   const why = new Map((review?.positions ?? []).map((x) => [x.isin, x.why]));
-  const M: string[] = [];
-  M.push(`<b>📊 Tu cartera · ${escapeHtml(dayLabel(today))}</b>`);
-  if (review) M.push(`<i>${escapeHtml(review.headline)}</i>`);
-  M.push("");
-  M.push(`${arrow(dayEur)} <b>Hoy: ${signedEur(dayEur)} (${pct(dayPct)})</b>`);
-  M.push(`Valor: <b>${eur(total)}</b> · Invertido: ${eur(invested)}`);
-  M.push(`Ganancia acumulada: ${signedEur(total - invested)} (${pct(invested > 0 ? total / invested - 1 : null)}) · IRPF si vendieras todo: ~${eur(savingsTax(total - invested))}`);
-  if (review) {
-    M.push("");
-    M.push(`<b>Por qué</b>`);
-    M.push(escapeHtml(review.day_story));
-  }
-  M.push("");
-  M.push(`<b>Posición a posición</b>`);
-  for (const d of days) {
-    M.push(`${arrow(d.dayEur)} <b>${escapeHtml(shortName(d.p.name))}</b>: ${signedEur(d.dayEur)} (${pct(d.dayPct)}) · ${eur(d.valueEur)}${d.note ? ` · <i>${escapeHtml(d.note)}</i>` : ""}`);
-    const w = why.get(d.p.isin);
-    if (w) M.push(`   ${escapeHtml(w)}`);
-  }
-  if (review?.news.length) {
-    M.push("");
-    M.push(`<b>Noticias que importan</b>`);
-    for (const n of review.news) M.push(`• <b>${escapeHtml(n.title)}</b> (${escapeHtml(n.source)}): ${escapeHtml(n.why_it_matters)}`);
-  }
-  if (review?.watch.length) {
-    M.push("");
-    M.push(`<b>A vigilar</b>`);
-    for (const w of review.watch) M.push(`• ${escapeHtml(w)}`);
-  }
-  M.push("");
-  M.push(`<i>Resumen informativo, no es una recomendación. Los fondos publican su valor liquidativo con retraso.</i>`);
-  const message = M.join("\n");
+  const labelOf = (p: Row) => String(p.short_name ?? shortName(p.name));
+  const message = buildPortfolioMessage({
+    dateLabel: dayLabel(today),
+    total,
+    dayEur,
+    dayPct,
+    invested,
+    positions: days.map((d) => ({ label: labelOf(d.p), dayEur: d.dayEur, dayPct: d.dayPct, valueEur: d.valueEur, stale: !d.newData })),
+    headline: review?.headline ?? null,
+    movers: days.filter((d) => why.has(d.p.isin)).map((d) => ({ label: labelOf(d.p), why: why.get(d.p.isin)! })),
+    news: (review?.news ?? []).map((n) => ({ title: n.title, source: n.source })),
+    watch: review?.watch ?? [],
+  });
 
   if (dryRun) {
-    console.log("\n===== MENSAJE (no enviado) =====\n" + message.replace(/<\/?[bi]>/g, ""));
+    console.log("\n===== MENSAJE (no enviado) =====\n" + message.replace(/<\/?(b|i|pre)>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
     return;
   }
 
