@@ -130,8 +130,8 @@ export function buildPrompt(p: PromptInput): string {
   }
   L.push("");
   if (p.news.length) {
-    L.push("## TITULARES RECIENTES (Yahoo Finance; pueden ser incompletos o sesgados)");
-    for (const n of p.news) L.push(`- ${n.publishedAt ? madrid(n.publishedAt) : ""} ${trunc(n.title, 160)}${n.tickers.length ? ` [${n.tickers.slice(0, 4).join(",")}]` : ""}`);
+    L.push("## TITULARES RECIENTES (solo agencias y prensa económica fiables, vía Yahoo Finance; pueden ser incompletos)");
+    for (const n of p.news) L.push(`- ${n.publishedAt ? madrid(n.publishedAt) : ""} ${n.publisher ? `(${n.publisher}) ` : ""}${trunc(n.title, 160)}${n.tickers.length ? ` [${n.tickers.slice(0, 4).join(",")}]` : ""}`);
     L.push("");
   }
   if (p.team) {
