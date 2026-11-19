@@ -142,6 +142,16 @@ export default async function MiCarteraPage() {
                 </ul>
               </div>
             ) : null}
+            {(review.content?.tomorrow as string[] | undefined)?.length ? (
+              <div>
+                <p className="text-xs font-medium text-muted">Qué se espera para la próxima sesión</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-2">
+                  {(review.content.tomorrow as string[]).map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : (
           <Empty>El primer resumen diario llegará a las 22:20 de un día laborable, cuando esté activado en tu PC.</Empty>

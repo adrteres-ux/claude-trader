@@ -85,9 +85,20 @@ const ReviewSchema = z
       .max(3)
       .describe("Solo las 2-3 posiciones que más se han movido hoy en euros"),
     news: z
-      .array(z.object({ title: text(110).describe("Titular traducido al español, corto"), source: text(40), why_it_matters: text(160) }).strict())
+      .array(
+        z
+          .object({
+            title: text(110).describe("Titular traducido al español, corto"),
+            source: text(40),
+            why_it_matters: text(200).describe("En una o dos frases cortas: qué ha pasado y cómo afecta a TUS posiciones"),
+          })
+          .strict(),
+      )
       .max(3),
-    watch: z.array(text(80)).max(2).describe("Citas próximas a vigilar, muy cortas (p. ej. 'IPC EE. UU. el 10/12')"),
+    tomorrow: z
+      .array(text(140))
+      .max(5)
+      .describe("Qué se espera para la próxima sesión, unas 5 líneas cortas: citas del calendario, resultados y temas que pueden mover tus posiciones"),
   })
   .strict();
 type Review = z.infer<typeof ReviewSchema>;
@@ -99,8 +110,9 @@ Reglas:
 3. Los fondos publican su valor liquidativo con retraso: si una posición dice "sin valor liquidativo nuevo", explícalo así y no inventes su movimiento.
 4. Nada de recomendaciones de compra o venta: es un resumen informativo. Puedes señalar con neutralidad riesgos o concentraciones evidentes.
 5. MUY breve y directo: el mensaje se lee en el móvil en menos de un minuto. Frases cortas, sin relleno ni repetir cifras que ya se ven.
-6. "positions": solo las 2-3 posiciones que más se han movido hoy en euros. "news": como máximo 3 titulares de la lista, los más relevantes para ESTA cartera, traducidos al español.
-7. Responde solo con el JSON del esquema.`;
+6. "positions": solo las 2-3 posiciones que más se han movido hoy en euros. "news": como máximo 3 titulares de la lista, los más relevantes para ESTA cartera, traducidos al español, cada uno explicado en una o dos frases cortas (qué ha pasado y a qué posición afecta).
+7. "tomorrow": unas 5 líneas sobre la PRÓXIMA SESIÓN usando la sección MAÑANA y el calendario: qué citas hay (bancos centrales, datos de inflación o empleo, resultados), a qué posiciones afectan y qué temas de las noticias siguen abiertos. No predigas si el mercado subirá o bajará: di qué se vigila y por qué importa.
+8. Responde solo con el JSON del esquema.`;
 
 // ---------- Formato ----------
 const eurF = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -112,6 +124,14 @@ const shortName = (n: string) => {
   return s.length > 48 ? `${s.slice(0, 47)}…` : s;
 };
 const dayLabel = (d: string) => new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
+
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+/** Siguiente día laborable (lunes a viernes). */
+function nextWeekday(d: string): string {
+  let x = addDays(d, 1);
+  while ([0, 6].includes(new Date(`${x}T12:00:00Z`).getUTCDay())) x = addDays(x, 1);
+  return x;
+}
 
 interface PosDay {
   p: Row;
@@ -242,6 +262,19 @@ async function main() {
   if (!news.length) L.push("Ninguno.");
   for (const n of news) L.push(`- [${n.publisher}] ${n.title}${n.tickers.length ? ` (${n.tickers.slice(0, 4).join(", ")})` : ""}`);
   L.push("");
+  const next = nextWeekday(today);
+  L.push(`## MAÑANA (${next})`);
+  const macroNext = upcomingMacroEvents(next, 0);
+  if (!macroNext.length) L.push("Sin citas macro oficiales ese día en el calendario.");
+  for (const e of macroNext) L.push(`- ${e.time} · ${e.region} · ${e.name}`);
+  const earningsSoon = [...quotes.values()]
+    .filter((q) => q.earningsDate && madridDate(q.earningsDate) >= today && madridDate(q.earningsDate) <= addDays(today, 7))
+    .map((q) => `- Resultados de ${REF_NAMES[q.symbol] ?? q.name} (${q.symbol}): ${madridDate(q.earningsDate!)}`);
+  if (earningsSoon.length) {
+    L.push("Resultados empresariales próximos (posiciones y referencias):");
+    L.push(...earningsSoon);
+  }
+  L.push("");
   L.push("## CALENDARIO (próximos 7 días)");
   const macro = upcomingMacroEvents(today, 7);
   if (!macro.length) L.push("Sin citas macro relevantes.");
@@ -273,8 +306,9 @@ async function main() {
     positions: days.map((d) => ({ label: labelOf(d.p), dayEur: d.dayEur, dayPct: d.dayPct, valueEur: d.valueEur, stale: !d.newData })),
     headline: review?.headline ?? null,
     movers: days.filter((d) => why.has(d.p.isin)).map((d) => ({ label: labelOf(d.p), why: why.get(d.p.isin)! })),
-    news: (review?.news ?? []).map((n) => ({ title: n.title, source: n.source })),
-    watch: review?.watch ?? [],
+    news: (review?.news ?? []).map((n) => ({ title: n.title, source: n.source, why: n.why_it_matters })),
+    tomorrowLabel: dayLabel(nextWeekday(today)),
+    tomorrow: review?.tomorrow ?? [],
   });
 
   if (dryRun) {
@@ -316,7 +350,7 @@ async function main() {
     })),
     day_story: review?.day_story ?? null,
     news: review?.news ?? [],
-    watch: review?.watch ?? [],
+    tomorrow: review?.tomorrow ?? [],
   };
   const summary = review ? `${review.headline} ${review.day_story}` : `Hoy ${signedEur(dayEur)} (${pct(dayPct)}). Valor ${eur(total)}.`;
   const { error: re } = await db
