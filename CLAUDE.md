@@ -72,7 +72,7 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
 - [x] 4. `npm run market-check` y `npm run run-agent -- --offline --force --print-prompt`
 - [ ] 5. Primera ejecución real (`npm run run-agent`) con mercados abiertos
 - [x] 6. Tareas programadas instaladas en el PC de Adrià (2026-11-19, con `scripts/windows/setup.ps1`)
-- [ ] 7. Web en Vercel (solo variables NEXT_PUBLIC_*)
+- [x] 7. Web en Vercel: https://simulador-bolsa-five.vercel.app (proyecto `simulador-bolsa`, solo variables NEXT_PUBLIC_*)
 - [ ] 8. Periodo de prueba (`test-1`) → experimento oficial
 - [ ] 9. Mejoras propias (ver guía "Clon de Claude vs. el Mercado")
 
@@ -97,7 +97,7 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
   Consumo: ~25 k tokens la decisión + ~10 k cada analista; prompt del gestor ~40 k caracteres.
 - Decisión del usuario (2026-10-23): sin límite de operaciones por día/semana. Va en el system prompt del
   gestor, la academia y la gestora de riesgos (prevalece sobre el manual v1, que tenía "máx. 3-4 por semana").
-- Web original: https://claude-trader-livid.vercel.app. La del clon: pendiente (despliegue automático al hacer push a main).
+- Web original: https://claude-trader-livid.vercel.app. La del clon: https://simulador-bolsa-five.vercel.app (despliegue automático al hacer push a main).
 - Rama principal `main`. Repo público (GitHub Actions gratis + transparencia).
 - `cacheComponents` desactivado en `next.config.ts`: la web es privada y dinámica (sesión en cada petición).
 - `package.json` con `"type": "module"` (los scripts usan top-level await con tsx).
