@@ -24,10 +24,14 @@ const cpi = (dates: string[]): MacroEvent[] =>
 const jobs = (dates: string[]): MacroEvent[] =>
   dates.map((date) => ({ date, time: "14:30", region: "EE. UU.", name: "Informe de empleo de EE. UU. (nóminas y paro)" }));
 
+const FED_STRATEGY_ONLY: MacroEvent[] = [
+  { date: "2027-10-27", time: "—", region: "EE. UU.", name: "Fed (FOMC): reunión solo de estrategia, sin decisión de tipos" },
+];
+
 export const MACRO_EVENTS: MacroEvent[] = [
   // Día de la decisión (segundo día de la reunión).
   ...fed(["2026-12-09", "2027-01-27", "2027-03-17", "2027-04-28", "2027-06-09", "2027-07-28", "2027-09-15", "2027-11-17"]),
-  { date: "2027-10-27", time: "—", region: "EE. UU.", name: "Fed (FOMC): reunión solo de estrategia, sin decisión de tipos" },
+  ...FED_STRATEGY_ONLY,
   ...ecb(["2026-12-17", "2027-02-04", "2027-03-18", "2027-04-29", "2027-06-10", "2027-07-22", "2027-09-09", "2027-10-28", "2027-12-16"]),
   ...cpi([
     "2026-12-10", "2027-01-13", "2027-02-11", "2027-03-10", "2027-04-13", "2027-05-12", "2027-06-10",
