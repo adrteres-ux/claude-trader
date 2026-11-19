@@ -73,3 +73,6 @@ begin
     execute format('create policy %I on public.%I for select to authenticated using (private.is_owner())', t || '_owner_read', t);
   end loop;
 end $$;
+
+-- Nombre corto de cada posición para el gráfico del mensaje diario (2026-11-19).
+alter table public.pf_positions add column short_name text;

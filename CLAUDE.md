@@ -111,6 +111,10 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
   ISIN ni importes en el código), titulares de fuentes fiables, UNA llamada a Claude para el porqué, guarda en
   `pf_valuations`/`pf_reviews` y envía por Telegram (`agent/lib/telegram.ts`; `npm run telegram-setup` guarda el
   chat). Si Claude falla (cupo), se envían solo las cifras. Opciones: --dry-run, --no-claude, --no-telegram.
+- Mensajes de Telegram cortos y visuales (2026-11-19, petición del usuario, para TODOS a partir de ahora):
+  `agent/lib/portfolio-message.ts` — cabecera con el día y el total, una frase de por qué, gráfico de barras en
+  texto (<pre>) con lo ganado/perdido por posición (`pf_positions.short_name`), 2-3 posiciones explicadas, máx.
+  3 noticias y 2 citas. Sin imágenes ni servicios externos (los datos no salen de Telegram).
 
 ## Historia heredada del proyecto original (PolParis)
 - Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.
