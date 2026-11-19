@@ -16,7 +16,9 @@
     "create-user": "tsx --env-file-if-exists=.env.local agent/create-user.ts",
     "market-check": "tsx --env-file-if-exists=.env.local agent/market-check.ts",
     "explain": "tsx --env-file-if-exists=.env.local agent/explain.ts",
-    "academy": "tsx --env-file-if-exists=.env.local agent/academy.ts"
+    "academy": "tsx --env-file-if-exists=.env.local agent/academy.ts",
+    "portfolio": "tsx --env-file-if-exists=.env.local agent/portfolio-review.ts",
+    "telegram-setup": "tsx --env-file-if-exists=.env.local agent/telegram-setup.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

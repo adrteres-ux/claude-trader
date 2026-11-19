@@ -104,7 +104,13 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
   usuario sin email → se guarda como `<usuario>@mi-cartera.local` en Supabase Auth; página /cuenta para cambiar
   la contraseña. Tablas `pf_positions`, `pf_valuations`, `pf_reviews` (migración `20261119230000_mi_cartera.sql`)
   legibles SOLO por los usuarios de `app_owners` (función `private.is_owner()`). Los datos personales NO van
-  al repo (se cargan en la BD). Pendiente: revisión diaria a las 22:20 con Telegram (fase siguiente).
+  al repo (se cargan en la BD).
+- Resumen diario de Mi cartera (2026-11-19): `npm run portfolio` (`agent/portfolio-review.ts`), tarea PF a las
+  22:20 L-V. Precios de Yahoo (fondos buscados por ISIN, símbolo guardado en `pf_positions.yahoo_symbol`),
+  cifras del día calculadas en código, referencias genéricas por temática/región (el repo es público: nada de
+  ISIN ni importes en el código), titulares de fuentes fiables, UNA llamada a Claude para el porqué, guarda en
+  `pf_valuations`/`pf_reviews` y envía por Telegram (`agent/lib/telegram.ts`; `npm run telegram-setup` guarda el
+  chat). Si Claude falla (cupo), se envían solo las cifras. Opciones: --dry-run, --no-claude, --no-telegram.
 
 ## Historia heredada del proyecto original (PolParis)
 - Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.

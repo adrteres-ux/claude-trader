@@ -106,14 +106,45 @@ export default async function MiCarteraPage() {
         />
       </div>
 
-      <Section title="Veredicto del comité de agentes">
+      <Section title="Resumen del día">
         {review ? (
-          <div className="space-y-2 text-sm">
-            <p className="text-xs text-muted">Revisión del {fmtDate(review.review_date)}</p>
-            <p>{review.summary}</p>
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-muted">
+              Resumen del {fmtDate(review.review_date)} · hoy{" "}
+              <span className={tone(review.content?.day_eur)}>
+                {fmtEur(review.content?.day_eur)} ({fmtPct(review.content?.day_pct)})
+              </span>
+            </p>
+            <p>{review.content?.day_story ?? review.summary}</p>
+            {(review.content?.positions as Row[] | undefined)?.some((x) => x.why) && (
+              <ul className="space-y-1.5">
+                {(review.content.positions as Row[]).map((x) => (
+                  <li key={x.isin}>
+                    <span className="font-medium">{x.name}</span>{" "}
+                    <span className={`num ${tone(x.day_eur)}`}>
+                      {fmtEur(x.day_eur)} ({fmtPct(x.day_pct)})
+                    </span>
+                    {x.why && <span className="text-ink-2"> · {x.why}</span>}
+                    {x.note && <span className="text-xs text-muted"> · {x.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(review.content?.news as Row[] | undefined)?.length ? (
+              <div>
+                <p className="text-xs font-medium text-muted">Noticias que importan</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-2">
+                  {(review.content.news as Row[]).map((n) => (
+                    <li key={n.title}>
+                      <strong className="text-ink">{n.title}</strong> ({n.source}): {n.why_it_matters}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : (
-          <Empty>La primera revisión diaria de los agentes llegará a las 22:20 de un día laborable, cuando esté activada en tu PC.</Empty>
+          <Empty>El primer resumen diario llegará a las 22:20 de un día laborable, cuando esté activado en tu PC.</Empty>
         )}
       </Section>
 
