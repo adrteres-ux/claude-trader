@@ -67,11 +67,11 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
 ## Estado de fases del clon (actualizado 2026-11-19)
 - [x] 0. Fork en GitHub (adrteres-ux/claude-trader)
 - [x] 1. Proyecto Supabase `simulador-bolsa` creado y 6 migraciones aplicadas (14 tablas, experimento `test-1`)
-- [ ] 2. En el PC: Node 20+, Git, Claude Code con sesión iniciada; `git clone`, `npm install`, `npm test`
-- [ ] 3. `.env.local` (copiar `.env.example` y añadir `SUPABASE_SECRET_KEY`)
-- [ ] 4. `npm run market-check` y `npm run run-agent -- --offline --force --print-prompt`
+- [x] 2. En el PC: Node 20+, Git, Claude Code con sesión iniciada; `git clone`, `npm install`, `npm test`
+- [x] 3. `.env.local` (copiar `.env.example` y añadir `SUPABASE_SECRET_KEY`)
+- [x] 4. `npm run market-check` y `npm run run-agent -- --offline --force --print-prompt`
 - [ ] 5. Primera ejecución real (`npm run run-agent`) con mercados abiertos
-- [ ] 6. Tareas programadas (`scripts/windows/install-tasks.ps1`)
+- [x] 6. Tareas programadas instaladas en el PC de Adrià (2026-11-19, con `scripts/windows/setup.ps1`)
 - [ ] 7. Web en Vercel (solo variables NEXT_PUBLIC_*)
 - [ ] 8. Periodo de prueba (`test-1`) → experimento oficial
 - [ ] 9. Mejoras propias (ver guía "Clon de Claude vs. el Mercado")
