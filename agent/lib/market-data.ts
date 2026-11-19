@@ -7,6 +7,36 @@ import type { MarketDataProvider, MarketQuote, NewsItem } from "./market/provide
 import { mapLimit } from "./market/yahoo";
 import { FX_SYMBOL } from "./ops";
 
+/**
+ * Fuentes de noticias aceptadas (decisión del usuario, 2026-11-19: solo fuentes fiables).
+ * Agencias y prensa económica con redacción propia. Se descartan agregadores, blogs de
+ * recomendaciones y contenido patrocinado (Motley Fool, Zacks, Benzinga, InvestorPlace,
+ * Simply Wall St, GuruFocus, Insider Monkey, TipRanks, 24/7 Wall St...).
+ * Se compara sin distinguir mayúsculas y por inclusión, porque Yahoo escribe el nombre de formas distintas.
+ */
+export const TRUSTED_PUBLISHERS = [
+  "reuters",
+  "bloomberg",
+  "associated press",
+  "ap finance",
+  "afp",
+  "financial times",
+  "wall street journal",
+  "dow jones",
+  "barron's",
+  "marketwatch",
+  "cnbc",
+  "the economist",
+  "nikkei",
+  "yahoo finance",
+];
+
+export function isTrustedPublisher(publisher: string | null | undefined): boolean {
+  if (!publisher) return false;
+  const p = publisher.toLowerCase();
+  return TRUSTED_PUBLISHERS.some((t) => p.includes(t));
+}
+
 export interface MarketSnapshot {
   quotes: Map<string, MarketQuote>;
   universe: UniverseRow[];
@@ -54,14 +84,18 @@ export async function gatherMarketData(
     watchlist: opts.watchlist.has(q.symbol),
   }));
 
-  const newsQueries = ["stock market", "global economy", ...opts.held.slice(0, 6)];
-  const newsLists = await mapLimit(newsQueries, 3, (q) => provider.getNews(q, q.includes(" ") ? 6 : 2));
+  // Se piden más titulares de los necesarios porque después solo se quedan los de fuentes fiables.
+  const newsQueries = ["stock market", "global economy", "central bank interest rates", ...opts.held.slice(0, 6)];
+  const newsLists = await mapLimit(newsQueries, 3, (q) => provider.getNews(q, q.includes(" ") ? 20 : 8));
   const seen = new Set<string>();
-  const news = newsLists
-    .flat()
+  const all = newsLists.flat();
+  const news = all
+    .filter((n) => isTrustedPublisher(n.publisher))
     .filter((n) => n.title && !seen.has(n.title) && seen.add(n.title))
     .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
     .slice(0, 18);
+  const dropped = [...new Set(all.filter((n) => !isTrustedPublisher(n.publisher)).map((n) => n.publisher ?? "sin fuente"))];
+  opts.log(`Noticias: ${news.length} de fuentes fiables; descartadas fuentes: ${dropped.join(", ") || "ninguna"}`);
 
   return {
     quotes,

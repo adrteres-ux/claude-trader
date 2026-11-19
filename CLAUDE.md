@@ -76,6 +76,11 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
 - [ ] 8. Periodo de prueba (`test-1`) → experimento oficial
 - [ ] 9. Mejoras propias (ver guía "Clon de Claude vs. el Mercado")
 
+## Decisiones del clon
+- Noticias solo de fuentes fiables (2026-11-19, petición del usuario): lista `TRUSTED_PUBLISHERS` en
+  `agent/lib/market-data.ts` (Reuters, Bloomberg, AP, AFP, FT, WSJ/Dow Jones, Barron's, MarketWatch, CNBC,
+  The Economist, Nikkei, Yahoo Finance). El resto se descarta y se anota en el log; el prompt muestra la fuente de cada titular.
+
 ## Historia heredada del proyecto original (PolParis)
 - Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.
 
