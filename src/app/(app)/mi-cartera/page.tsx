@@ -71,7 +71,12 @@ export default async function MiCarteraPage() {
   const lastDate = valuations.reduce((m, v) => (v.price_date > m ? v.price_date : m), "");
 
   // Evolución: para cada fecha, suma del último valor conocido de cada posición hasta esa fecha.
-  const dates = [...new Set(valuations.map((v) => String(v.price_date)))].sort();
+  // Solo desde el primer día en que TODAS las posiciones tienen un valor (si no, el total saldría incompleto).
+  const firstFull = positions.reduce((m, p) => {
+    const first = valuations.filter((v) => v.isin === p.isin).map((v) => String(v.price_date)).sort()[0] ?? "9999";
+    return first > m ? first : m;
+  }, "");
+  const dates = [...new Set(valuations.map((v) => String(v.price_date)))].filter((d) => d >= firstFull).sort();
   const series = dates.map((d) => {
     let value = 0;
     let inv = 0;
