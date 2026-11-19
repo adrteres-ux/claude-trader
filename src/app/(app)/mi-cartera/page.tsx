@@ -57,7 +57,7 @@ export default async function MiCarteraPage() {
   const last = new Map<string, Row>();
   for (const v of valuations) last.set(v.isin, v);
   const rows = positions
-    .map((p) => {
+    .map((p): Row & { value: number; invested: number; gain: number; ret: number | null } => {
       const v = last.get(p.isin);
       const value = v ? Number(v.value_eur) : 0;
       const invested = v ? Number(v.invested_eur) : Number(p.invested);
