@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { href: "/", label: "Resumen" },
+  { href: "/mi-cartera", label: "Mi cartera" },
+  { href: "/", label: "Laboratorio" },
   { href: "/explicaciones", label: "Explicaciones" },
   { href: "/oficina", label: "Oficina" },
   { href: "/posiciones", label: "Posiciones" },
@@ -14,6 +15,7 @@ const LINKS = [
   { href: "/cuantitativo", label: "Cuantitativo" },
   { href: "/metodologia", label: "Metodología" },
   { href: "/integridad", label: "Integridad" },
+  { href: "/cuenta", label: "Cuenta" },
 ];
 
 export function Nav() {

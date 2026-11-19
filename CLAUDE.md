@@ -99,6 +99,13 @@ Este archivo es la fuente de verdad del estado del proyecto. Idioma: español.
 - Actualización automática (2026-11-19): `run-agent.ps1` hace `git pull --ff-only` antes de cada ejecución
   y `npm install` si cambia `package-lock.json`.
 
+- Giro del proyecto (2026-11-19): además del laboratorio ficticio, "Mi cartera" con la cartera REAL del usuario
+  en MyInvestor (fondos, ETF y acciones). Web entera con login (se recupera el de PolParis, commit f0bcf39^):
+  usuario sin email → se guarda como `<usuario>@mi-cartera.local` en Supabase Auth; página /cuenta para cambiar
+  la contraseña. Tablas `pf_positions`, `pf_valuations`, `pf_reviews` (migración `20261119230000_mi_cartera.sql`)
+  legibles SOLO por los usuarios de `app_owners` (función `private.is_owner()`). Los datos personales NO van
+  al repo (se cargan en la BD). Pendiente: revisión diaria a las 22:20 con Telegram (fase siguiente).
+
 ## Historia heredada del proyecto original (PolParis)
 - Las notas siguientes describen decisiones y problemas del proyecto original; siguen valiendo como referencia.
 
