@@ -231,7 +231,11 @@ async function main() {
     // Precio anterior: la última valoración guardada de un día anterior; si no hay, el cierre previo de Yahoo.
     const prevStored = [...hist].reverse().find((v) => String(v.price_date) < priceDate);
     let prevValueEur: number;
-    if (prevStored) prevValueEur = Number(prevStored.value_eur);
+    // Se escala a las participaciones actuales: una compra o venta nueva no cuenta como ganancia del día.
+    if (prevStored) {
+      const prevQty = Number(prevStored.quantity);
+      prevValueEur = Number(prevStored.value_eur) * (prevQty > 0 ? qty / prevQty : 1);
+    }
     else if (useYahoo && q!.previousClose) prevValueEur = (qty * q!.previousClose) / (isUsd ? (fxPrev ?? rate) : 1);
     else prevValueEur = valueEur;
     return {
