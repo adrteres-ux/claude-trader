@@ -6,6 +6,7 @@
 // 5. UNA llamada a Claude para explicar el porqué en lenguaje sencillo (sin inventar cifras).
 // 6. Guarda la valoración y el informe en Supabase y te lo envía por Telegram.
 // Opciones: --dry-run (no guarda ni envía; imprime el mensaje), --no-claude (solo números), --no-telegram.
+import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import { madridDate } from "@/core/calendar";
 import { upcomingMacroEvents } from "@/core/macro-calendar";
@@ -14,8 +15,9 @@ import { adminClient } from "./lib/db";
 import { isTrustedPublisher } from "./lib/market-data";
 import type { MarketQuote, NewsItem } from "./lib/market/provider";
 import { YahooProvider, mapLimit } from "./lib/market/yahoo";
-import { buildPortfolioMessage } from "./lib/portfolio-message";
-import { sendTelegram, telegramConfigured } from "./lib/telegram";
+import { buildPortfolioMessage, type MsgInput } from "./lib/portfolio-message";
+import { sendTelegram, sendTelegramPhoto, telegramConfigured } from "./lib/telegram";
+import { portfolioChartPng } from "./lib/portfolio-chart";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -329,21 +331,31 @@ async function main() {
   // Mensaje de Telegram: corto y visual (cifras del código + explicación de Claude).
   const why = new Map((review?.positions ?? []).map((x) => [x.isin, x.why]));
   const labelOf = (p: Row) => String(p.short_name ?? shortName(p.name));
-  const message = buildPortfolioMessage({
+  const msgPositions = days.map((d) => ({ label: labelOf(d.p), dayEur: d.dayEur, dayPct: d.dayPct, valueEur: d.valueEur, stale: !!d.note?.startsWith("sin ") }));
+  // Gráfico en verde/rojo por posición (imagen PNG hecha en este PC). Si no se puede, van líneas de texto.
+  const chart = await portfolioChartPng({ title: dayLabel(today), dayEur, dayPct, total, positions: msgPositions });
+  if (!chart) log("No se pudo dibujar el gráfico (falta sharp): el mensaje lleva las posiciones en texto.");
+  const msgInput: MsgInput = {
     dateLabel: dayLabel(today),
     total,
     dayEur,
     dayPct,
     invested,
-    positions: days.map((d) => ({ label: labelOf(d.p), dayEur: d.dayEur, dayPct: d.dayPct, valueEur: d.valueEur, stale: !!d.note?.startsWith("sin ") })),
+    positions: msgPositions,
+    chartSent: !!chart,
     headline: review?.headline ?? null,
     movers: days.filter((d) => why.has(d.p.isin)).map((d) => ({ label: labelOf(d.p), why: why.get(d.p.isin)! })),
     news: (review?.news ?? []).map((n) => ({ title: n.title, source: n.source, why: n.why_it_matters })),
     tomorrowLabel: dayLabel(nextWeekday(today)),
     tomorrow: review?.tomorrow ?? [],
-  });
+  };
+  const message = buildPortfolioMessage(msgInput);
 
   if (dryRun) {
+    if (chart) {
+      writeFileSync("mi-cartera-grafico.png", chart);
+      log("Gráfico guardado en mi-cartera-grafico.png (ábrelo para verlo).");
+    }
     console.log("\n===== MENSAJE (no enviado) =====\n" + message.replace(/<\/?(b|i|pre)>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
     return;
   }
@@ -395,6 +407,16 @@ async function main() {
   if (!telegramConfigured()) {
     log("Telegram no está configurado (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID): informe guardado solo en la web.");
     return;
+  }
+  if (chart) {
+    try {
+      await sendTelegramPhoto(chart);
+    } catch (e) {
+      log(`${(e as Error).message}. Se envía el texto con las posiciones.`);
+      await sendTelegram(buildPortfolioMessage({ ...msgInput, chartSent: false }));
+      log("Resumen enviado por Telegram (sin gráfico).");
+      return;
+    }
   }
   await sendTelegram(message);
   log("Resumen enviado por Telegram.");

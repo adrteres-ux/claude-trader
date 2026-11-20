@@ -22,6 +22,7 @@ export interface MsgInput {
   news?: { title: string; source: string; why?: string | null }[];
   tomorrowLabel?: string;
   tomorrow?: string[];
+  chartSent?: boolean; // el gráfico en verde/rojo va como imagen aparte: no repetir las líneas por posición
 }
 
 const eur0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0, useGrouping: "always" });
@@ -63,8 +64,10 @@ export function buildPortfolioMessage(m: MsgInput): string {
   const live = m.positions.filter((p) => !p.stale).sort((a, b) => b.dayEur - a.dayEur);
   const stale = m.positions.filter((p) => p.stale);
   const maxAbs = Math.max(0, ...live.map((p) => Math.abs(p.dayEur)));
-  L.push("");
-  for (const p of [...live, ...stale]) L.push(positionLine(p, maxAbs));
+  if (!m.chartSent) {
+    L.push("");
+    for (const p of [...live, ...stale]) L.push(positionLine(p, maxAbs));
+  }
   if (m.movers?.length) {
     L.push("");
     for (const x of m.movers) L.push(`▸ <b>${escapeHtml(x.label)}</b>: ${escapeHtml(x.why)}`);

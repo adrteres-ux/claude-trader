@@ -39,3 +39,20 @@ export async function sendTelegram(html: string): Promise<void> {
     if (!j?.ok) throw new Error(`Telegram respondió con error: ${j?.description ?? res.status}`);
   }
 }
+
+/** Envía una imagen PNG (el gráfico del día). Solo va a tu chat, igual que los mensajes. */
+export async function sendTelegramPhoto(png: Buffer, caption?: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) throw new Error("Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID en .env.local (ejecuta npm run telegram-setup)");
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  if (caption) {
+    form.append("caption", caption);
+    form.append("parse_mode", "HTML");
+  }
+  form.append("photo", new Blob([new Uint8Array(png)], { type: "image/png" }), "mi-cartera.png");
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
+  const j = (await res.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+  if (!j?.ok) throw new Error(`Telegram respondió con error al enviar el gráfico: ${j?.description ?? res.status}`);
+}
